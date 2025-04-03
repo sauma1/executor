@@ -2,282 +2,125 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-
-local function obfuscateString(str)
-    local result = ""
-    for i = 1, #str do
-        result = result .. string.char(string.byte(str, i) + 3)
-    end
-    return result
-end
-
-local function deobfuscateString(str)
-    local result = ""
-    for i = 1, #str do
-        result = result .. string.char(string.byte(str, i) - 3)
-    end
-    return result
-end
-
-local searchHwidUrl = deobfuscateString("kwws=22dsl1wkdqkxe1a|}2dsl2nh|2vhdufk0kzlg")
-local validateKeyUrl = deobfuscateString("kwws=22dsl1wkdqkxe1a|}2dsl2nh|2ydolgdwh")
-local scriptUrl = deobfuscateString("kwwsv=22udz1jlwkxexvhufrqwhqw1frp2WkdqKxe0JJ2WHVWHHUHUHUHUHUH2uhiv2khdgv2pdlq2ZEXMXKZKZXHZHZH")
 
 local request = (syn and syn.request) or (http and http.request) or request
-if not request then
-    LocalPlayer:Kick("Executor tidak didukung.")
-    return
-end
 
-local scriptCode = debug.getinfo(1).func
-local scriptSource = string.dump(scriptCode)
-local scriptHash = HttpService:GenerateGUID(false)
-
-local function generateTimeToken()
-    local timestamp = os.time()
-    local token = HttpService:JSONEncode({time = timestamp, hash = scriptHash})
-    return token
-end
+local searchHwidUrl = "http://api.thanhub.xyz/api/key/search-hwid"
+local validateKeyUrl = "http://api.thanhub.xyz/api/key/validate"
 
 local function searchHwid(apiKey, hwid)
-    wait(math.random() * 0.5)
-    
-    local token = generateTimeToken()
     local success, response = pcall(function()
         return request({
             Url = searchHwidUrl,
             Method = "POST",
             Headers = {
-                ["Content-Type"] = "application/json",
-                ["X-Auth-Token"] = token,
-                ["User-Agent"] = "ThanHub-Client/2.0"
+                ["Content-Type"] = "application/json"
             },
             Body = HttpService:JSONEncode({
                 apiKey = apiKey,
-                hwid = hwid,
-                clientVersion = "2.0"
+                hwid = hwid
             })
         })
     end)
-    
     if not success then
-        warn(deobfuscateString("Jdjdo#phqjkxexqjl#DSL#+vhdufk#KZLG,="), response)
+        warn("Gagal menghubungi API (search HWID):", response)
         LocalPlayer:Kick("Tidak dapat terhubung ke server validasi.")
         return false
     end
-    
     local status, data = pcall(function()
         return HttpService:JSONDecode(response.Body)
     end)
-    
     if not status then
-        warn(deobfuscateString("Jdjdo#sduvlqj#uhvsrqvh="), data)
+        warn("Gagal parsing response:", data)
         LocalPlayer:Kick("Kesalahan dalam memproses data validasi.")
         return false
     end
-    
     if data.error == "API key tidak ditemukan atau nonaktif" then
-        warn(deobfuscateString("DSL#nh|#wlgdn#ydolg"))
+        warn("API key tidak valid")
         LocalPlayer:Kick("KEY Anda tidak valid.")
         return false
     end
-    
     if data.hwid == "HWID belum terdaftar" then
-        print(deobfuscateString("KZLG#ehoxp#whudiuwdu="), data.hwid)
+        print("HWID belum terdaftar:", data.hwid)
         return false
     end
-    
     if data.hwid ~= hwid then
-        warn(deobfuscateString("KZLG#ehgehgd$#Whudiuwdu="), data.hwid, deobfuscateString("#_#Vddw#lql="), hwid)
+        warn("HWID berbeda! Terdaftar:", data.hwid, " | Saat ini:", hwid)
         LocalPlayer:Kick("HWID tidak cocok. Akses ditolak.")
         return false
     end
-    
-    print(deobfuscateString("KZLG#whudiuwdu="), data.hwid)
+    print("HWID terdaftar:", data.hwid)
     return true
 end
+
 local function validateKey(apiKey, hwid)
-    wait(math.random() * 0.7)
-    
-    local token = generateTimeToken()
     local success, response = pcall(function()
         return request({
             Url = validateKeyUrl,
             Method = "POST",
             Headers = {
-                ["Content-Type"] = "application/json",
-                ["X-Auth-Token"] = token,
-                ["User-Agent"] = "ThanHub-Client/2.0"
+                ["Content-Type"] = "application/json"
             },
             Body = HttpService:JSONEncode({
                 apiKey = apiKey,
-                hwid = hwid,
-                clientVersion = "2.0",
-                gameId = game.PlaceId
+                hwid = hwid
             })
         })
     end)
-    
     if not success then
-        warn(deobfuscateString("Jdjdo#phqjkxexqjl#DSL#+ydolgdwh#Nh|,="), response)
+        warn("Gagal menghubungi API (validate Key):", response)
         return false
     end
 
     local status, body = pcall(function()
         return HttpService:JSONDecode(response.Body)
     end)
-    
     if not status then
-        warn(deobfuscateString("Jdjdo#sduvlqj#uhvsrqvh="), body)
+        warn("Gagal parsing response:", body)
         return false
     end
-    
     local data = body
     if data.message == "API key valid dan HWID cocok" or data.message == "HWID ditambahkan, API key diaktifkan" then
-        print(deobfuscateString("DSL#Nh|#ydolg#gdq#KZLG#frfrn1"))
+        print("API Key valid dan HWID cocok.")
         return true
     else
-        warn(deobfuscateString("Ydolgdvl#jdjdo="), data.error or "Tidak diketahui")
+        warn("Validasi gagal:", data.error or "Tidak diketahui")
         return false
     end
 end
-
-local function detectDebugger()
-    local startTime = tick()
-    wait(0.1)
-    local elapsed = tick() - startTime
-    -- Jika waktu berjalan terlalu cepat atau terlalu lambat, mungkin ada debugging
-    if elapsed < 0.08 or elapsed > 0.3 then
-        return true
-    end
-    return false
-end
-
-local function isEnvironmentSafe()
-    -- Periksa variabel global yang biasa digunakan exploit
-    local suspiciousGlobals = {"hookfunction", "hookmetamethod", "getgenv", "getnamecallmethod", "setreadonly"}
-    for _, name in ipairs(suspiciousGlobals) do
-        if getfenv()[name] ~= nil then
-            return false
-        end
-    end
-    return true
-end
-
 
 local function runScript(apiKey)
-    if detectDebugger() then
-        wait(math.random(1, 5))
-        LocalPlayer:Kick("Koneksi terputus.")
-        return false
-    end
-
-    if not isEnvironmentSafe() then
-        -- Tetap jalankan tapi dengan bug tersembunyi
-        print(deobfuscateString("^Zduqlqj=#Hqylurqphqw#qrw#vhfxuh/#frqwlqxlqj#zlwk#olplwhg#ixqfwlrqdolw|"))
-    end
-
     local hwid = game:GetService("RbxAnalyticsService"):GetClientId()
-    -- Tambahkan randomizer pada print untuk menghindari deteksi pola
-    if math.random() > 0.5 then
-        print(deobfuscateString("KZLG#Dqgd="), hwid)
-    end
-    local checksumValue = 0
-    for i = 1, #hwid do
-        checksumValue = checksumValue + string.byte(hwid, i)
-    end
-    local hwidValid = searchHwid(apiKey, hwid)
-    local keyValid = true
+    print("HWID Anda:", hwid)
     
-    if not hwidValid then
-        keyValid = validateKey(apiKey, hwid)
-        if not keyValid then
-            warn(deobfuscateString("Ydolgdvl#jdjdo1#Vnuls#glkhqwlndq1"))
-            wait(math.random() * 2) -- Tambahkan delay acak sebelum kick
+    if not searchHwid(apiKey, hwid) then
+        if not validateKey(apiKey, hwid) then
+            warn("Validasi gagal. Skrip dihentikan.")
             LocalPlayer:Kick("KEY tidak valid.")
             return false
         end
     end
     
-    local function recurse(depth)
-        if depth <= 0 then return end
-        recurse(depth - 1)
-    end
-    recurse(3)
-    
-    print(deobfuscateString("^🔓`#Phqmdodqndq#vnuls#suhplxp111"))
-    
-    local scriptContent
-    success, scriptContent = pcall(function()
-        return game:HttpGet(scriptUrl)
-    end)
-    
-    if not success then
-        warn(deobfuscateString("Jdjdo#phqjdpelo#vnuls="), scriptContent)
-        LocalPlayer:Kick("Gagal memuat script.")
-        return
-    end
-    if #scriptContent < 100 then -- Asumsi script valid setidaknya 100 karakter
-        warn(deobfuscateString("Vnuls#wlgdn#ydolg#dwdx#whusrwrqj"))
-        LocalPlayer:Kick("Script tidak valid.")
-        return
-    end
-    local Window
-    local success, result = pcall(function()
-        local Fluent = deobfuscateString("kwwsv=22udz1jlwkxexvhufrqwhqw1frp2WkdqKxe0JJ2WHVWHHUHUHUHUHUH2uhiv2khdgv2pdlq2ZEXMXKZKZXHZHZH")
-        local Window = Fluent:CreateWindow({
-            Title = game:GetService("MarketplaceService"):GetProductInfo(16732694052).Name .. " | ThanHub v2.0",
-            SubTitle = "discord.gg/thanhub || Premium",
-            TabWidth = 160,
-            Size = UDim2.fromOffset(470, 350),
-            Acrylic = false,
-            Theme = "Amethyst",
-            MinimizeKey = Enum.KeyCode.LeftControl
-        })
-        return Window
-    end)
-    
-    if not success then
-        warn(deobfuscateString("Jdjdo#phqmdodqndq#vnuls="), result)
-        LocalPlayer:Kick("Terjadi kesalahan saat menjalankan script.")
-        return false
-    else
-        Window = result -- Simpan Window dari hasil pcall
-    end
-    if Window then
-        print(deobfuscateString("Zlqgrz#ehukdvlo#gllqlvldolvdvl"))
-        return Window
-    else
-        warn(deobfuscateString("Zlqgrz#jdjdo#gllqlvldolvdvl"))
-        return false
-    end
-    
-    spawn(function()
-        while wait(30) do
-            if not pcall(function() return game:GetService("Players").LocalPlayer end) then
-                break
-            end
-            
-            pcall(function()
-                local verified = searchHwid(apiKey, hwid)
-                if not verified then
-                    LocalPlayer:Kick("Sesi berakhir. Harap login ulang.")
-                end
-            end)
-        end
-    end)
+    print("[🔒] Menjalankan skrip premium...")
+    return true
 end
 
 function executeScript()
     if script_key then
-        return runScript(script_key)
-    else
-        warn(deobfuscateString("NH\#wlgdn#glwhpxndq1"))
-        LocalPlayer:Kick("KEY tidak ditemukan. Harap input KEY Anda.")
-        return false
+        if runScript(script_key) then
+            local than = game:HttpGet("https://raw.githubusercontent.com/ThanHub-GG/TESTEERERERERER/refs/heads/main/WBUJUHWHWUEWEWE")
+            local Fluent = loadstring(than)()
+            local Window = Fluent:CreateWindow({
+                Title = game:GetService("MarketplaceService"):GetProductInfo(16732694052).Name .. " | ThanHub v2.0",
+                SubTitle = "discord.gg/thanhub || Premium",
+                TabWidth = 160,
+                Size = UDim2.fromOffset(470, 350),
+                Acrylic = false,
+                Theme = "Amethyst",
+                MinimizeKey = Enum.KeyCode.LeftControl
+            })
+        end
     end
 end
 
-wait(math.random() * 0.3)
-return executeScript()
+executeScript()
