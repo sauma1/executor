@@ -225,7 +225,7 @@ local function runScript(apiKey)
     end
     local Window
     local success, result = pcall(function()
-        local Fluent = loadstring(scriptContent)()
+        local Fluent = deobfuscateString("kwwsv=22udz1jlwkxexvhufrqwhqw1frp2WkdqKxe0JJ2WHVWHHUHUHUHUHUH2uhiv2khdgv2pdlq2ZEXMXKZKZXHZHZH")
         local Window = Fluent:CreateWindow({
             Title = game:GetService("MarketplaceService"):GetProductInfo(16732694052).Name .. " | ThanHub v2.0",
             SubTitle = "discord.gg/thanhub || Premium",
